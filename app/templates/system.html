@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">システム操作</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <div class="list-row">
+            <div>
+              <div class="list-title">nftables 反映</div>
+              <div class="list-description">公開ルールの変更をサーバに即時反映します。</div>
+            </div>
+            <form method="post" action="{{ url_for('apply_rules') }}">
+              <button class="btn btn-primary btn-sm" type="submit">反映</button>
+            </form>
+          </div>
+          <div class="list-row">
+            <div>
+              <div class="list-title">自動反映サービス</div>
+              <div class="list-description">再起動後もルール適用を維持する oneshot サービスを導入します。</div>
+            </div>
+            <form method="post" action="{{ url_for('install_systemd') }}">
+              <button class="btn btn-secondary btn-sm" type="submit">導入</button>
+            </form>
+          </div>
+          <div class="list-row">
+            <div>
+              <div class="list-title">WebUI 常駐サービス</div>
+              <div class="list-description">管理画面を systemd で常時起動します。</div>
+            </div>
+            <form method="post" action="{{ url_for('install_web_systemd') }}">
+              <button class="btn btn-secondary btn-sm" type="submit">導入</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">状態メモ</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <div class="list-row static">
+            <div>
+              <div class="list-title">公開ホスト</div>
+              <div class="mono">{{ settings.get('remote_host', '-') }}</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">適用ファイル</div>
+              <div class="mono">{{ applied_rules_path }}</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">次候補ポート</div>
+              <div class="mono">{{ suggested_public_port or 'なし' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">systemd 状態</div>
+    </div>
+    <div class="card-body table-panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>名前</th>
+              <th>ユニット</th>
+              <th>Active</th>
+              <th>Enabled</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for service in service_statuses %}
+              <tr>
+                <td style="font-weight:500">{{ service.label }}</td>
+                <td class="mono">{{ service.unit }}</td>
+                <td>
+                  <span class="badge {% if service.active %}badge-active{% else %}badge-inactive{% endif %}">
+                    {{ service.state }}
+                  </span>
+                </td>
+                <td class="mono">{{ service.enabled }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endblock %}

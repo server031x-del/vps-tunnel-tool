@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+*.env
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.ovpn
+
+# Runtime data (database, generated firewall rules, client profiles)
+app/data/*
+!app/data/.gitkeep
+
+# Editors and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

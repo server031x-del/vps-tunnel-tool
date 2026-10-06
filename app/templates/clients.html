@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">クライアント証明書発行</div>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('create_client') }}">
+          <div class="form-group">
+            <label class="form-label">クライアント名</label>
+            <input class="form-input" name="name" placeholder="例: home-pc" required>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-success" type="submit">発行して .ovpn を生成</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">発行ガイド</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <div class="list-row static">
+            <div>
+              <div class="list-title">1. クライアント名を入力</div>
+              <div class="list-description">英数字、`.`、`-`、`_` を使えます。</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">2. .ovpn を配布</div>
+              <div class="list-description">自宅PCへ配布して OpenVPN クライアントで読み込みます。</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">3. VPN IP を確認</div>
+              <div class="list-description">接続後の `10.8.0.x` を公開ルールの転送先に使います。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">発行済みクライアント</div>
+      <span class="card-meta">{{ clients|length }} 件</span>
+    </div>
+    <div class="card-body table-panel">
+      {% if clients %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>名前</th>
+                <th>作成日時</th>
+                <th>保存先</th>
+                <th style="text-align:right">取得</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for client in clients %}
+                <tr>
+                  <td style="font-weight:500">{{ client.name }}</td>
+                  <td class="mono">{{ client.created_at }}</td>
+                  <td class="mono">{{ client.export_path }}</td>
+                  <td style="text-align:right">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('download_client', client_id=client.id) }}">ダウンロード</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">まだクライアントはありません</div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

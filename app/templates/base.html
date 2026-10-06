@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }} | OpenVPN Relay Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">
+        <div class="logo-icon">VP</div>
+        <span>VPN Relay</span>
+      </div>
+      <div class="sub">Management Console</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">メイン</div>
+        <a class="nav-item {% if current_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">ダッシュボード</a>
+        <a class="nav-item {% if current_page == 'vpn-settings' %}active{% endif %}" href="{{ url_for('vpn_settings_page') }}">VPN 設定</a>
+        <a class="nav-item {% if current_page == 'clients' %}active{% endif %}" href="{{ url_for('clients_page') }}">クライアント</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">ネットワーク</div>
+        <a class="nav-item {% if current_page == 'rules' %}active{% endif %}" href="{{ url_for('rules_page') }}">公開ルール</a>
+        <a class="nav-item {% if current_page == 'logs' %}active{% endif %}" href="{{ url_for('logs_page') }}">ログ</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">システム</div>
+        <a class="nav-item {% if current_page == 'system' %}active{% endif %}" href="{{ url_for('system_page') }}">設定</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">OpenVPN Relay Manager v1.2</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">{{ page_title }}</div>
+      <div class="topbar-actions">
+        <span class="topbar-user">{{ session.get('app_login_user', 'app-user') }}</span>
+        <form method="post" action="{{ url_for('install_systemd') }}">
+          <button class="btn btn-secondary" type="submit">自動反映サービス</button>
+        </form>
+        <form method="post" action="{{ url_for('install_web_systemd') }}">
+          <button class="btn btn-secondary" type="submit">WebUI 常駐</button>
+        </form>
+        <form method="post" action="{{ url_for('apply_rules') }}">
+          <button class="btn btn-primary" type="submit">ルール反映</button>
+        </form>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="btn btn-secondary" type="submit">ログアウト</button>
+        </form>
+      </div>
+    </header>
+
+    <div class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <section class="messages">
+            {% for category, message in messages %}
+              <div class="message message-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll("[data-copy-text]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const text = button.dataset.copyText;
+        const original = button.textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          button.textContent = "コピー済み";
+          setTimeout(() => {
+            button.textContent = original;
+          }, 1200);
+        } catch (error) {
+          button.textContent = "失敗";
+          setTimeout(() => {
+            button.textContent = original;
+          }, 1200);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

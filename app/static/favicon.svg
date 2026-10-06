@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="VPN Relay">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.15" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)" />
+  <path d="M32 10l18 7v13c0 11.8-7.4 19.9-18 24-10.6-4.1-18-12.2-18-24V17l18-7z" fill="#0b1220" opacity="0.34" />
+  <path d="M32 12l16 6.3v11.6c0 10.5-6.3 17.7-16 21.6-9.7-3.9-16-11.1-16-21.6V18.3L32 12z" fill="url(#shine)" opacity="0.38" />
+  <path d="M18 21h8.2l5.8 19 5.8-19H46l-10 26h-8L18 21z" fill="#ffffff" />
+  <path d="M26.4 21h7.4c7 0 11 3.3 11 8.9 0 5.9-4.2 9.3-11.5 9.3h-3.1v7.8h-3.8V21zm3.8 3.2V36h3c5.2 0 7.7-2 7.7-6 0-3.9-2.4-5.8-7.2-5.8h-3.5z" fill="#dbeafe" />
+</svg>

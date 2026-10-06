@@ -1,0 +1,582 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">公開ルール追加</div>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('create_rule') }}" class="form-grid">
+          <div class="form-group">
+            <label class="form-label">ルール名</label>
+            <input class="form-input" name="name" placeholder="識別名を入力" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">プロトコル</label>
+            <select class="form-select" name="protocol">
+              <option value="tcp">tcp</option>
+              <option value="udp">udp</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">VPS 側バインド IP</label>
+            <input class="form-input" name="public_bind_ip" value="{{ default_public_bind_ip }}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">VPS 側公開ポート</label>
+            <input class="form-input" name="public_port" type="number" value="{{ suggested_public_port }}" placeholder="空欄で自動採番">
+          </div>
+          <div class="form-group">
+            <label class="form-label">VPN 先 IP</label>
+            <input class="form-input" name="target_ip" placeholder="10.8.0.10" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">VPN 先ポート</label>
+            <input class="form-input" name="target_port" type="number" placeholder="8080" required>
+          </div>
+          <div class="form-group full">
+            <div class="form-hint">空欄または表示中の候補のまま送信すると、未使用ポートを自動検索します。</div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">ルール追加</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">公開の考え方</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <div class="list-row static">
+            <div>
+              <div class="list-title">公開</div>
+              <div class="list-description mono">{{ settings.get('remote_host', '&lt;VPS IP&gt;') }}:18080</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">転送先</div>
+              <div class="list-description mono">10.8.0.10:3000</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">反映が必要</div>
+              <div class="list-description">登録後に「ルール反映」を押して nftables に適用します。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="rule-directory">
+    <div class="rule-directory-header">
+      <div>
+        <div class="directory-eyebrow">PUBLISHING DIRECTORY</div>
+        <h2>公開ルール</h2>
+        <p>公開ポート、VPN転送先、割り当てURLをルール単位で確認できます。</p>
+      </div>
+      <div class="rule-metrics">
+        <div class="rule-metric"><strong>{{ rules|length }}</strong><span>総ルール</span></div>
+        <div class="rule-metric is-active"><strong>{{ active_rule_count }}</strong><span>有効</span></div>
+        <div class="rule-metric is-url"><strong>{{ assigned_url_rule_count }}</strong><span>URL割当</span></div>
+      </div>
+    </div>
+
+    {% if rules %}
+      <div class="rule-toolbar">
+        <label class="rule-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <input id="rule-search" type="search" placeholder="名前・ポート・IP・URLを検索">
+        </label>
+        <select class="rule-filter" id="rule-status-filter" aria-label="状態で絞り込み">
+          <option value="all">すべての状態</option>
+          <option value="active">有効のみ</option>
+          <option value="inactive">無効のみ</option>
+        </select>
+        <select class="rule-filter" id="rule-protocol-filter" aria-label="プロトコルで絞り込み">
+          <option value="all">TCP / UDP</option>
+          <option value="tcp">TCP</option>
+          <option value="udp">UDP</option>
+        </select>
+        <select class="rule-filter" id="rule-url-filter" aria-label="URL割当で絞り込み">
+          <option value="all">すべてのURL状態</option>
+          <option value="assigned">URL割当済み</option>
+          <option value="unassigned">URL未割当</option>
+        </select>
+        <div class="rule-visible-count"><strong data-visible-rule-count>{{ rules|length }}</strong> 件表示</div>
+      </div>
+
+      <div class="rule-grid" id="rule-grid">
+        {% for rule in rules %}
+          <article
+            class="publish-rule-card {% if not rule.enabled %}is-disabled{% endif %}"
+            data-rule-card
+            data-status="{% if rule.enabled %}active{% else %}inactive{% endif %}"
+            data-protocol="{{ rule.protocol }}"
+            data-url-status="{% if rule.assigned_urls %}assigned{% else %}unassigned{% endif %}"
+            data-search="{{ rule.name }} {{ rule.public_bind_ip }} {{ rule.public_port }} {{ rule.target_ip }} {{ rule.target_port }} {% for assigned_url in rule.assigned_urls %}{{ assigned_url }} {% endfor %}"
+          >
+            <header class="rule-card-header">
+              <div class="rule-card-identity">
+                <form method="post" action="{{ url_for('toggle_rule', rule_id=rule.id) }}">
+                  <button class="toggle {% if rule.enabled %}on{% endif %}" type="submit" title="有効/無効切替" aria-label="{{ rule.name }} の有効状態を切り替え"></button>
+                </form>
+                <div>
+                  <div class="rule-card-name-row">
+                    <h3>{{ rule.name }}</h3>
+                    <span class="protocol-chip protocol-{{ rule.protocol }}">{{ rule.protocol|upper }}</span>
+                  </div>
+                  <span class="rule-state {% if rule.enabled %}is-active{% endif %}">{% if rule.enabled %}公開中{% else %}停止中{% endif %}</span>
+                </div>
+              </div>
+              <form method="post" action="{{ url_for('delete_rule', rule_id=rule.id) }}" onsubmit='return confirm({{ (rule.name ~ " を削除しますか？")|tojson }});'>
+                <button class="rule-delete-button" type="submit" title="ルールを削除" aria-label="{{ rule.name }} を削除">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 10v6M14 10v6"></path></svg>
+                </button>
+              </form>
+            </header>
+
+            <div class="route-map">
+              <div class="route-endpoint is-public">
+                <span class="route-label">VPS PUBLIC</span>
+                <strong class="mono">{{ settings.get('remote_host', '127.0.0.1') }}:<em>{{ rule.public_port }}</em></strong>
+                <small>bind {{ rule.public_bind_ip }}</small>
+              </div>
+              <div class="route-connector">
+                <span>→</span>
+                <small>DNAT</small>
+              </div>
+              <div class="route-endpoint is-target">
+                <span class="route-label">VPN TARGET</span>
+                <strong class="mono">{{ rule.target_ip }}:<em>{{ rule.target_port }}</em></strong>
+                <small>{{ rule.protocol|upper }} tunnel</small>
+              </div>
+            </div>
+
+            <div class="rule-url-section">
+              <div class="rule-url-heading">
+                <div>
+                  <span>割り当てURL</span>
+                  <small>{% if rule.assigned_urls %}{{ rule.assigned_urls|length }} 件{% elif rule.protocol == 'udp' %}UDPは対象外{% else %}未設定{% endif %}</small>
+                </div>
+                {% if rule.protocol == 'tcp' %}
+                  <button
+                    class="btn btn-url-assign btn-xs js-url-assignment-open"
+                    type="button"
+                    data-action="{{ url_for('assign_rule_url', rule_id=rule.id) }}"
+                    data-rule-name="{{ rule.name }}"
+                    data-public-port="{{ rule.public_port }}"
+                    data-target="{{ rule.target_ip }}:{{ rule.target_port }}"
+                  >{% if rule.assigned_urls %}URLを追加{% else %}URLを割り当て{% endif %}</button>
+                {% endif %}
+              </div>
+
+              {% if rule.assigned_urls %}
+                <div class="rule-url-list">
+                  {% for assigned_url in rule.assigned_urls %}
+                    <div class="rule-url-item">
+                      <span class="url-security {% if assigned_url.startswith('https://') %}is-secure{% endif %}">{% if assigned_url.startswith('https://') %}HTTPS{% else %}HTTP{% endif %}</span>
+                      <a class="assigned-url mono" href="{{ assigned_url }}" title="{{ assigned_url }}" target="_blank" rel="noopener noreferrer">{{ assigned_url }}</a>
+                      <div class="rule-url-actions">
+                        <button class="btn btn-secondary btn-xs" type="button" data-copy-text="{{ assigned_url }}">コピー</button>
+                        {% if assigned_url.startswith('http://') %}
+                          <button
+                            class="btn btn-https-retry btn-xs js-https-retry"
+                            type="button"
+                            data-action="{{ url_for('enable_rule_https', rule_id=rule.id) }}"
+                            data-url="{{ assigned_url }}"
+                          >HTTPS化</button>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="rule-url-empty">
+                  <span>{% if rule.protocol == 'tcp' %}サブドメインはまだ割り当てられていません{% else %}UDPルールにはWeb URLを割り当てできません{% endif %}</span>
+                  <button
+                    class="btn btn-secondary btn-xs"
+                    type="button"
+                    data-copy-text="{% if rule.protocol == 'tcp' %}http://{{ settings.get('remote_host', '127.0.0.1') }}:{{ rule.public_port }}/{% else %}{{ settings.get('remote_host', '127.0.0.1') }}:{{ rule.public_port }}/udp{% endif %}"
+                  >公開先をコピー</button>
+                </div>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <div class="rule-filter-empty" data-rule-filter-empty hidden>条件に一致する公開ルールはありません</div>
+    {% else %}
+      <div class="empty-state">公開ルールはまだありません</div>
+    {% endif %}
+  </section>
+
+  <dialog class="url-assignment-dialog" id="url-assignment-dialog">
+    <div class="dialog-shell">
+      <div class="dialog-header">
+        <div>
+          <div class="dialog-eyebrow">URL ASSIGNMENT</div>
+          <h2 data-dialog-title>公開URLを割り当て</h2>
+        </div>
+        <button class="dialog-close" type="button" data-dialog-close aria-label="閉じる">&times;</button>
+      </div>
+
+      <div class="wizard-progress" aria-label="登録ステップ">
+        <div class="wizard-progress-item is-active" data-progress-step="1"><span>1</span>URL入力</div>
+        <div class="wizard-progress-line"></div>
+        <div class="wizard-progress-item" data-progress-step="2"><span>2</span>確認</div>
+        <div class="wizard-progress-line"></div>
+        <div class="wizard-progress-item" data-progress-step="3"><span>3</span>完了</div>
+      </div>
+
+      <form id="url-assignment-form">
+        <section class="wizard-panel is-active" data-wizard-step="1">
+          <div class="wizard-rule-summary">
+            <span class="wizard-rule-label">対象ルール</span>
+            <strong data-wizard-rule-name></strong>
+            <span class="mono" data-wizard-route></span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="assignment-subdomain">サブドメイン</label>
+            <div class="domain-input">
+              <input
+                class="form-input"
+                id="assignment-subdomain"
+                name="subdomain"
+                autocomplete="off"
+                maxlength="63"
+                pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+                placeholder="例: my-service"
+                required
+              >
+              <span class="domain-separator">.</span>
+              <select class="form-select" id="assignment-base-domain" name="base_domain">
+                {% for domain in public_base_domains %}
+                  <option value="{{ domain }}">{{ domain }}</option>
+                {% endfor %}
+                <option value="__custom__">その他のドメイン...</option>
+              </select>
+            </div>
+            <div class="form-hint">英小文字・数字・ハイフンが使えます。</div>
+          </div>
+
+          <div class="form-group custom-domain-group" data-custom-domain-group hidden>
+            <label class="form-label" for="assignment-custom-domain">その他のメインドメイン</label>
+            <input
+              class="form-input"
+              id="assignment-custom-domain"
+              name="custom_base_domain"
+              autocomplete="off"
+              placeholder="example.com"
+            >
+            <div class="form-hint">DNSをこのVPSへ向けているドメインを入力してください。</div>
+          </div>
+
+          <label class="https-option">
+            <input type="checkbox" name="enable_https" value="1" checked>
+            <span>
+              <strong>HTTPSを自動設定</strong>
+              <small>DNS反映済みなら Let’s Encrypt 証明書まで発行します。</small>
+            </span>
+          </label>
+
+          <div class="url-preview-box">
+            <span>割り当て予定URL</span>
+            <strong class="mono" data-url-preview>https://subdomain.{{ public_base_domains[0] }}/</strong>
+          </div>
+
+          <div class="dialog-actions">
+            <button class="btn btn-secondary" type="button" data-dialog-close>キャンセル</button>
+            <button class="btn btn-primary" type="button" data-wizard-next>設定確認へ</button>
+          </div>
+        </section>
+
+        <section class="wizard-panel" data-wizard-step="2">
+          <div class="confirmation-grid">
+            <div class="confirmation-item">
+              <span>公開URL</span>
+              <strong class="mono" data-confirm-url></strong>
+            </div>
+            <div class="confirmation-item">
+              <span>公開ルール</span>
+              <strong data-confirm-rule></strong>
+            </div>
+            <div class="confirmation-item">
+              <span>転送先</span>
+              <strong class="mono" data-confirm-target></strong>
+            </div>
+            <div class="confirmation-item">
+              <span>自動処理</span>
+              <strong data-confirm-https></strong>
+            </div>
+          </div>
+          <div class="wizard-note">
+            nginx設定を作成して再読込します。DNS未設定の場合もHTTP設定は作成し、必要なAレコードを完了画面に表示します。
+          </div>
+          <div class="dialog-actions">
+            <button class="btn btn-secondary" type="button" data-wizard-back>戻る</button>
+            <button class="btn btn-primary" type="submit">割り当てを実行</button>
+          </div>
+        </section>
+
+        <section class="wizard-panel" data-wizard-step="3">
+          <div class="wizard-result" data-wizard-result>
+            <div class="wizard-spinner"></div>
+            <h3>URLを設定しています</h3>
+            <p>nginxの検証と証明書の状態を確認しています。</p>
+          </div>
+          <div class="dialog-actions wizard-result-actions" hidden>
+            <button class="btn btn-primary" type="button" data-dialog-close>閉じて一覧を更新</button>
+          </div>
+        </section>
+      </form>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      const dialog = document.getElementById("url-assignment-dialog");
+      const form = document.getElementById("url-assignment-form");
+      const subdomainInput = document.getElementById("assignment-subdomain");
+      const baseDomainSelect = document.getElementById("assignment-base-domain");
+      const customDomainInput = document.getElementById("assignment-custom-domain");
+      const customDomainGroup = dialog.querySelector("[data-custom-domain-group]");
+      const httpsInput = form.elements.enable_https;
+      const result = dialog.querySelector("[data-wizard-result]");
+      const resultActions = dialog.querySelector(".wizard-result-actions");
+      const dialogTitle = dialog.querySelector("[data-dialog-title]");
+      const baseDomains = {{ public_base_domains|tojson }};
+      let selectedRule = null;
+      let assignmentCompleted = false;
+
+      const ruleCards = Array.from(document.querySelectorAll("[data-rule-card]"));
+      const ruleSearch = document.getElementById("rule-search");
+      const statusFilter = document.getElementById("rule-status-filter");
+      const protocolFilter = document.getElementById("rule-protocol-filter");
+      const urlFilter = document.getElementById("rule-url-filter");
+      const visibleRuleCount = document.querySelector("[data-visible-rule-count]");
+      const filterEmpty = document.querySelector("[data-rule-filter-empty]");
+
+      const applyRuleFilters = () => {
+        const query = ruleSearch.value.trim().toLowerCase();
+        let visibleCount = 0;
+        ruleCards.forEach((card) => {
+          const matchesSearch = !query || card.dataset.search.toLowerCase().includes(query);
+          const matchesStatus = statusFilter.value === "all" || card.dataset.status === statusFilter.value;
+          const matchesProtocol = protocolFilter.value === "all" || card.dataset.protocol === protocolFilter.value;
+          const matchesUrl = urlFilter.value === "all" || card.dataset.urlStatus === urlFilter.value;
+          const visible = matchesSearch && matchesStatus && matchesProtocol && matchesUrl;
+          card.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        visibleRuleCount.textContent = visibleCount;
+        filterEmpty.hidden = visibleCount !== 0;
+      };
+
+      if (ruleSearch) {
+        ruleSearch.addEventListener("input", applyRuleFilters);
+        [statusFilter, protocolFilter, urlFilter].forEach((filter) => {
+          filter.addEventListener("change", applyRuleFilters);
+        });
+      }
+
+      const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[character]);
+
+      const currentBaseDomain = () => {
+        if (baseDomainSelect.value === "__custom__") {
+          return customDomainInput.value.trim().toLowerCase() || "example.com";
+        }
+        return baseDomainSelect.value || baseDomains[0];
+      };
+
+      const currentUrl = () => {
+        const scheme = httpsInput.checked ? "https" : "http";
+        const label = subdomainInput.value.trim().toLowerCase() || "subdomain";
+        return `${scheme}://${label}.${currentBaseDomain()}/`;
+      };
+
+      const setStep = (step) => {
+        dialog.querySelectorAll("[data-wizard-step]").forEach((panel) => {
+          panel.classList.toggle("is-active", Number(panel.dataset.wizardStep) === step);
+        });
+        dialog.querySelectorAll("[data-progress-step]").forEach((item) => {
+          const itemStep = Number(item.dataset.progressStep);
+          item.classList.toggle("is-active", itemStep === step);
+          item.classList.toggle("is-complete", itemStep < step);
+        });
+      };
+
+      const updatePreview = () => {
+        dialog.querySelector("[data-url-preview]").textContent = currentUrl();
+      };
+
+      const suggestedSubdomain = (name, port) => {
+        const slug = name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 63)
+          .replace(/-+$/g, "");
+        return slug || `service-${port}`;
+      };
+
+      document.querySelectorAll(".js-url-assignment-open").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedRule = {
+            action: button.dataset.action,
+            name: button.dataset.ruleName,
+            publicPort: button.dataset.publicPort,
+            target: button.dataset.target,
+          };
+          assignmentCompleted = false;
+          dialogTitle.textContent = "公開URLを割り当て";
+          form.action = selectedRule.action;
+          subdomainInput.value = suggestedSubdomain(selectedRule.name, selectedRule.publicPort);
+          baseDomainSelect.value = baseDomains[0];
+          customDomainInput.value = "";
+          customDomainInput.required = false;
+          customDomainGroup.hidden = true;
+          httpsInput.checked = true;
+          dialog.querySelector("[data-wizard-rule-name]").textContent = selectedRule.name;
+          dialog.querySelector("[data-wizard-route]").textContent = `:${selectedRule.publicPort} → ${selectedRule.target}`;
+          resultActions.hidden = true;
+          updatePreview();
+          setStep(1);
+          dialog.showModal();
+          subdomainInput.focus();
+          subdomainInput.select();
+        });
+      });
+
+      subdomainInput.addEventListener("input", () => {
+        subdomainInput.value = subdomainInput.value.toLowerCase();
+        updatePreview();
+      });
+      baseDomainSelect.addEventListener("change", () => {
+        const usesCustomDomain = baseDomainSelect.value === "__custom__";
+        customDomainGroup.hidden = !usesCustomDomain;
+        customDomainInput.required = usesCustomDomain;
+        updatePreview();
+        if (usesCustomDomain) customDomainInput.focus();
+      });
+      customDomainInput.addEventListener("input", () => {
+        customDomainInput.value = customDomainInput.value.toLowerCase();
+        updatePreview();
+      });
+      httpsInput.addEventListener("change", updatePreview);
+
+      dialog.querySelector("[data-wizard-next]").addEventListener("click", () => {
+        if (!subdomainInput.reportValidity()) return;
+        if (baseDomainSelect.value === "__custom__" && !customDomainInput.reportValidity()) return;
+        dialog.querySelector("[data-confirm-url]").textContent = currentUrl();
+        dialog.querySelector("[data-confirm-rule]").textContent = `${selectedRule.name} (:${selectedRule.publicPort})`;
+        dialog.querySelector("[data-confirm-target]").textContent = selectedRule.target;
+        dialog.querySelector("[data-confirm-https]").textContent = httpsInput.checked
+          ? "nginx設定 + HTTPS証明書"
+          : "nginx設定のみ";
+        setStep(2);
+      });
+
+      dialog.querySelector("[data-wizard-back]").addEventListener("click", () => setStep(1));
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setStep(3);
+        resultActions.hidden = true;
+        result.className = "wizard-result";
+        result.innerHTML = '<div class="wizard-spinner"></div><h3>URLを設定しています</h3><p>nginxの検証と証明書の状態を確認しています。</p>';
+
+        try {
+          const response = await fetch(form.action, {
+            method: "POST",
+            headers: { Accept: "application/json" },
+            body: new FormData(form),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || "URLの割り当てに失敗しました。");
+
+          assignmentCompleted = true;
+          result.classList.add(data.warning ? "is-warning" : "is-success");
+          result.innerHTML = `
+            <div class="wizard-result-icon">${data.warning ? "!" : "✓"}</div>
+            <h3>${data.warning ? "URL設定を一部完了しました" : "URLを割り当てました"}</h3>
+            <a class="assigned-url mono" href="${escapeHtml(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>
+            ${data.warning ? `<p>${escapeHtml(data.warning)}</p>` : "<p>nginxへの反映とHTTPS設定が完了しました。</p>"}
+          `;
+        } catch (error) {
+          result.classList.add("is-error");
+          result.innerHTML = `
+            <div class="wizard-result-icon">×</div>
+            <h3>割り当てに失敗しました</h3>
+            <p>${escapeHtml(error.message)}</p>
+          `;
+        }
+        resultActions.hidden = false;
+      });
+
+      document.querySelectorAll(".js-https-retry").forEach((button) => {
+        button.addEventListener("click", async () => {
+          assignmentCompleted = false;
+          dialogTitle.textContent = "HTTPS化を再実行";
+          setStep(3);
+          resultActions.hidden = true;
+          result.className = "wizard-result";
+          result.innerHTML = '<div class="wizard-spinner"></div><h3>HTTPS設定を確認しています</h3><p>DNSの解決先を確認し、証明書発行を実行します。</p>';
+          dialog.showModal();
+
+          try {
+            const formData = new FormData();
+            formData.set("hostname", new URL(button.dataset.url).hostname);
+            const response = await fetch(button.dataset.action, {
+              method: "POST",
+              headers: { Accept: "application/json" },
+              body: formData,
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.message || "HTTPS化に失敗しました。");
+
+            assignmentCompleted = true;
+            result.classList.add("is-success");
+            result.innerHTML = `
+              <div class="wizard-result-icon">✓</div>
+              <h3>HTTPS化が完了しました</h3>
+              <a class="assigned-url mono" href="${escapeHtml(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>
+              <p>証明書発行とHTTPからHTTPSへのリダイレクトを設定しました。</p>
+            `;
+          } catch (error) {
+            result.classList.add("is-error");
+            result.innerHTML = `
+              <div class="wizard-result-icon">×</div>
+              <h3>HTTPS化できませんでした</h3>
+              <p>${escapeHtml(error.message)}</p>
+            `;
+          }
+          resultActions.hidden = false;
+        });
+      });
+
+      dialog.querySelectorAll("[data-dialog-close]").forEach((button) => {
+        button.addEventListener("click", () => dialog.close());
+      });
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+      dialog.addEventListener("close", () => {
+        if (assignmentCompleted) window.location.reload();
+      });
+    })();
+  </script>
+{% endblock %}

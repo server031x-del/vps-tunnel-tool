@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">OpenVPN クライアント設定</div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('save_settings') }}" class="form-grid">
+        <div class="form-group">
+          <label class="form-label">公開ホスト名 / IP</label>
+          <input class="form-input" name="remote_host" value="{{ settings.get('remote_host', '') }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">OpenVPN ポート</label>
+          <input class="form-input" name="remote_port" type="number" value="{{ settings.get('remote_port', '1194') }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">プロトコル</label>
+          <select class="form-select" name="protocol">
+            <option value="udp" {% if settings.get('protocol') == 'udp' %}selected{% endif %}>udp</option>
+            <option value="tcp" {% if settings.get('protocol') == 'tcp' %}selected{% endif %}>tcp</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cipher</label>
+          <select class="form-select" name="cipher">
+            <option value="AES-256-GCM" {% if settings.get('cipher') == 'AES-256-GCM' %}selected{% endif %}>AES-256-GCM</option>
+            <option value="AES-128-GCM" {% if settings.get('cipher') == 'AES-128-GCM' %}selected{% endif %}>AES-128-GCM</option>
+            <option value="CHACHA20-POLY1305" {% if settings.get('cipher') == 'CHACHA20-POLY1305' %}selected{% endif %}>CHACHA20-POLY1305</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Auth</label>
+          <input class="form-input" name="auth" value="{{ settings.get('auth', 'SHA256') }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">VPN インターフェース</label>
+          <input class="form-input" name="vpn_interface" value="{{ settings.get('vpn_interface', 'tun0') }}" required>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">設定保存</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

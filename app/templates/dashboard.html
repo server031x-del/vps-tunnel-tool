@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">公開ルール</div>
+      <div class="stat-value">{{ rules|length }}</div>
+      <div class="stat-sub">{{ active_rule_count }} 件が有効</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">クライアント</div>
+      <div class="stat-value">{{ clients|length }}</div>
+      <div class="stat-sub">発行済み .ovpn</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">OpenVPN 接続先</div>
+      <div class="stat-value mono">{{ settings.get('remote_host', '-') }}</div>
+      <div class="stat-sub">{{ settings.get('protocol', '-') }} / {{ settings.get('remote_port', '-') }}</div>
+    </div>
+  </div>
+
+  <div class="info-banner">
+    <div class="banner-dot {% if applied_rules_exists %}is-live{% endif %}"></div>
+    {% if applied_rules_exists %}
+      適用中: <code>{{ applied_rules_path }}</code>
+    {% else %}
+      未反映です。ルール追加・変更後は「ルール反映」を押してください。
+    {% endif %}
+  </div>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">サービス状態</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          {% for service in service_statuses %}
+            <div class="list-row static">
+              <div>
+                <div class="list-title">{{ service.label }}</div>
+                <div class="list-description mono">{{ service.unit }}</div>
+              </div>
+              <span class="badge {% if service.active %}badge-active{% else %}badge-inactive{% endif %}">
+                {{ service.state }}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">ネットワーク状態</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <div class="list-row static">
+            <div>
+              <div class="list-title">次候補ポート</div>
+              <div class="mono">{{ suggested_public_port or 'なし' }}</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">適用ファイル</div>
+              <div class="mono">{{ applied_rules_path }}</div>
+            </div>
+          </div>
+          <div class="list-row static">
+            <div>
+              <div class="list-title">有効ルール数</div>
+              <div class="mono">{{ active_rule_count }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">最近の公開ルール</div>
+      </div>
+      <div class="card-body table-panel">
+        {% if rules %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名前</th>
+                  <th>公開</th>
+                  <th>転送先</th>
+                  <th>状態</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for rule in rules[:5] %}
+                  <tr>
+                    <td style="font-weight:500">{{ rule.name }}</td>
+                    <td><span class="mono">{{ rule.public_bind_ip }}:{{ rule.public_port }}/{{ rule.protocol }}</span></td>
+                    <td><span class="mono">{{ rule.target_ip }}:{{ rule.target_port }}</span></td>
+                    <td>
+                      <span class="badge {% if rule.enabled %}badge-active{% else %}badge-inactive{% endif %}">
+                        {% if rule.enabled %}有効{% else %}無効{% endif %}
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">公開ルールはまだありません</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">クイック操作</div>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          <a class="list-row link-row" href="{{ url_for('vpn_settings_page') }}">
+            <div>
+              <div class="list-title">VPN 設定を確認</div>
+              <div class="list-description">公開ホスト、ポート、暗号設定を調整します。</div>
+            </div>
+          </a>
+          <a class="list-row link-row" href="{{ url_for('clients_page') }}">
+            <div>
+              <div class="list-title">クライアントを発行</div>
+              <div class="list-description">自宅PC用の `.ovpn` を生成します。</div>
+            </div>
+          </a>
+          <a class="list-row link-row" href="{{ url_for('rules_page') }}">
+            <div>
+              <div class="list-title">公開ルールを編集</div>
+              <div class="list-description">VPS 側公開ポートと VPN 先を設定します。</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}

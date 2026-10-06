@@ -1,0 +1,12 @@
+[project]
+name = "vps-tunnel-tool"
+version = "0.1.0"
+description = "Web UI to manage OpenVPN client profiles and VPS port publishing rules."
+requires-python = ">=3.10"
+dependencies = ["Flask>=2.0,<4"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/*"]
+
+[tool.setuptools]
+packages = ["app"]

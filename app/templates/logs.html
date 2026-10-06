@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">サービスログ</div>
+    </div>
+    <div class="card-body">
+      {% if log_sections %}
+        <div class="log-sections">
+          {% for section in log_sections %}
+            <div class="log-card">
+              <div class="subsection-title">{{ section.label }}</div>
+              {% if section.lines %}
+                <pre class="log-output">{{ section.lines | join('\n') }}</pre>
+              {% else %}
+                <div class="empty-state compact">ログはありません</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">表示できるログがありません</div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
